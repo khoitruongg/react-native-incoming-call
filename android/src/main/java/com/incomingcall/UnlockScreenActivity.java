@@ -33,6 +33,7 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
     private ImageView ivAvatar;
     private String uuid = "";
     static boolean active = false;
+    private ReadableMap data;
     private Vibrator v = (Vibrator) IncomingCallModule.reactContext.getSystemService(Context.VIBRATOR_SERVICE);
     private long[] pattern = {0, 1000, 800};
     private MediaPlayer player = MediaPlayer.create(IncomingCallModule.reactContext, Settings.System.DEFAULT_RINGTONE_URI);
@@ -63,6 +64,8 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
             if (bundle.containsKey("uuid")) {
                 uuid = bundle.getString("uuid");
             }
+            data = Arguments.fromBundle(bundle);
+
             if (bundle.containsKey("name")) {
                 String name = bundle.getString("name");
                 tvName.setText(name);
@@ -120,8 +123,11 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
         params.putBoolean("done", true);
         params.putString("uuid", uuid);
 
-        if (IncomingCallModule.reactContext.hasCurrentActivity() && isAppOnForeground(IncomingCallModule.reactContext)) {
+        if (IncomingCallModule.reactContext.hasCurrentActivity() && isAppOnForeground()) {
             // App in foreground, send event for app to listen
+            if(getIntent().getExtras()!= null){
+                sendEvent("answerCall", Arguments.fromBundle(getIntent().getExtras()));
+            }
             sendEvent("answerCall", params);
         } else {
             // App in background or killed, start app and add launch params
@@ -132,11 +138,14 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
                 Class<?> activityClass = Class.forName(className);
                 Intent i = new Intent(IncomingCallModule.reactContext, activityClass);
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
                 Bundle b = new Bundle();
+                b = Arguments.toBundle(data);
                 b.putString("uuid", uuid);
+
                 i.putExtras(b);
                 IncomingCallModule.reactContext.startActivity(i);
-            } catch (Exception e) {
+            } catch(Exception e) {
                 Log.e("RNIncomingCall", "Class not found", e);
                 return;
             }
@@ -152,6 +161,9 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
 
         if (IncomingCallModule.reactContext.hasCurrentActivity()) {
             // App in foreground or background, send event for app to listen
+            if(getIntent().getExtras()!= null){
+                sendEvent("endCall", Arguments.fromBundle(getIntent().getExtras()));
+            }
             sendEvent("endCall", params);
         } else {
             // App killed, need to do something after
@@ -194,17 +206,17 @@ public class UnlockScreenActivity extends AppCompatActivity implements UnlockScr
                 .emit(eventName, params);
     }
 
-    private boolean isAppOnForeground(ReactApplicationContext context) {
+    private boolean isAppOnForeground() {
         /**
          * We need to check if app is in foreground otherwise the app will crash.
          * http://stackoverflow.com/questions/8489993/check-android-application-is-in-foreground-or-not
          **/
-        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager activityManager = (ActivityManager) IncomingCallModule.reactContext.getSystemService(Context.ACTIVITY_SERVICE);
         List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
         if (appProcesses == null) {
             return false;
         }
-        final String packageName = context.getPackageName();
+        final String packageName = IncomingCallModule.reactContext.getPackageName();
         for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
             if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
                     && appProcess.processName.equals(packageName)) {

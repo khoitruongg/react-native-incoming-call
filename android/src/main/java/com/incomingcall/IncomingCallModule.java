@@ -5,11 +5,15 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.view.WindowManager;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.ReadableMap;
+
+import javax.annotation.Nullable;
 
 public class IncomingCallModule extends ReactContextBaseJavaModule {
 
@@ -28,15 +32,23 @@ public class IncomingCallModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void display(String uuid, String name, String avatar) {
+    public void display(String uuid, String name, String avatar, @Nullable ReadableMap params) {
         if (UnlockScreenActivity.active) {
             return;
         }
         if (reactContext != null) {
             Bundle bundle = new Bundle();
+
+            ReadableMap data = params.hasKey("data") ? params.getMap("data") : null;
+
+            if (data != null) {
+                bundle = Arguments.toBundle(data);
+            }
+
             bundle.putString("uuid", uuid);
             bundle.putString("name", name);
             bundle.putString("avatar", avatar);
+
             Intent i = new Intent(reactContext, UnlockScreenActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             i.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED +
@@ -65,11 +77,14 @@ public class IncomingCallModule extends ReactContextBaseJavaModule {
         final Activity activity = getCurrentActivity();
         final Intent intent = activity.getIntent();
         Bundle b = intent.getExtras();
-        String value = "";
-        if (b != null) {
-            value = b.getString("uuid", "");            
+//        String value = "";
+//        if (b != null) {
+//            value = b.getString("uuid", "");
+//        }
+        if(b!= null){
+            promise.resolve(Arguments.fromBundle(b));
         }
-        promise.resolve(value);
+        promise.resolve(null);
     }
 
     @ReactMethod
